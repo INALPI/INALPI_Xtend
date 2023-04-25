@@ -27,7 +27,7 @@ public class OutputProcessExtension extends ExtendM3Trigger {
     String orderNumber_MMS480PF 
     int orderCategory_MMS480PF 
     String warehouse_MMS480PF 
-    int deliveryNumber_MMS480PF
+    long deliveryNumber_MMS480PF
     String newItemNumber_MMS480PF
     String oldItemNumber_MMS480PF
     String newLotNumber_MMS480PF
@@ -77,7 +77,7 @@ public class OutputProcessExtension extends ExtendM3Trigger {
      orderNumber_MMS480PF =fieldMap.get("OQRIDN")
      orderCategory_MMS480PF = fieldMap.get("OQRORC") as int
      warehouse_MMS480PF = fieldMap.get("OQWHLO")
-     deliveryNumber_MMS480PF = fieldMap.get("OQDLIX") as int
+     deliveryNumber_MMS480PF = fieldMap.get("OQDLIX") as long
      deprecateItemEXTCUS()
      getDatafromMFTRNS()
   }
