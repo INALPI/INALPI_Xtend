@@ -8,6 +8,7 @@
 * Date                        Changed By                    Description
 * 20230330                  Ravina Kurkure           Add and Update for MMS480PF
 * 20230425                  Ravina Kurkure          Added Function Javadoc Comments,added new fields CTQT, RGDT, RGTM, CHID, CHNO, LMDT
+* 20230506                  Ravina Kurkure          Changed the table to MITTRA to get data
 */
 import java.time.LocalDate
 import java.time.LocalTime
@@ -43,6 +44,7 @@ public class OutputProcessExtension extends ExtendM3Trigger {
     double newcatchWeight_MMS480PF = 0.0
     double tempcatchWeight_MMS480PF = 0.0
     int colli_MMS480PF = 0
+    int transType_MMS480PF = 0
    
     double tempColli = 0.0
     
@@ -76,10 +78,17 @@ public class OutputProcessExtension extends ExtendM3Trigger {
   boolean createEXTCUSRecord(HashMap<String,Object> fieldMap){
      orderNumber_MMS480PF =fieldMap.get("OQRIDN")
      orderCategory_MMS480PF = fieldMap.get("OQRORC") as int
+     if(orderCategory_MMS480PF == 3 ){
+       transType_MMS480PF = 31
+     }else  if(orderCategory_MMS480PF == 4 ){
+       transType_MMS480PF = 41
+     }else if(orderCategory_MMS480PF == 5 ){
+       transType_MMS480PF = 51
+     }
      warehouse_MMS480PF = fieldMap.get("OQWHLO")
      deliveryNumber_MMS480PF = fieldMap.get("OQDLIX") as long
      deprecateItemEXTCUS()
-     getDatafromMFTRNS()
+     getDatafromMITTRA()
   }
   
   /**
@@ -102,40 +111,42 @@ public class OutputProcessExtension extends ExtendM3Trigger {
   }
 
    /**
-   * getDatafromMFTRNS - get all the required fields to be added in Table from MFTRNS Get per LINE, ITEM AND LOTNumber
+   * getDatafromMITTRA - get all the required fields to be added in Table from MITTRA Get per LINE, ITEM AND LOTNumber
    * @return
    */
-  void getDatafromMFTRNS() {
+  void getDatafromMITTRA() {
         currentCompany = (Integer)program.getLDAZD().CONO
-        DBAction query = database.table("MFTRNS").index("10").selection("OSCONO","OSWHLO","OSRORC","OSRIDN","OSRIDL","OSRIDX","OSITNO","OSBANO","OSDLQT","OSNEWE").build()
+        DBAction query = database.table("MITTRA").index("30").selection("MTCONO","MTTTYP","MTRIDN","MTRIDL","MTRIDX","MTRIDI","MTITNO","MTBANO","MTTRQT","MTCAWE").build()
         DBContainer container = query.getContainer()
-        container.set("OSCONO",currentCompany )
-        container.set("OSWHLO", warehouse_MMS480PF)
-        container.set("OSRORC",orderCategory_MMS480PF)
-        container.set("OSRIDN",orderNumber_MMS480PF)
-        query.readAll(container, 4, releasedItemProcessor)
+        container.set("MTCONO",currentCompany )
+        container.set("MTTTYP", transType_MMS480PF)
+        container.set("MTRIDN",orderNumber_MMS480PF)
+        query.readAll(container, 3, releasedItemProcessorMITTRA)
+        
   }
+ 
 
-  Closure<?> releasedItemProcessor = { DBContainer container ->
-    newlineNo_MMS480PF = container.get("OSRIDL")
-    newRIDX_MMS480PF = container.get("OSRIDX")
-    newItemNumber_MMS480PF = container.get("OSITNO")
-    newLotNumber_MMS480PF = container.get("OSBANO")
-    newdeliveredQty_MMS480PF = container.get("OSDLQT") as double
-    newcatchWeight_MMS480PF = container.get("OSNEWE") as double
-   
-    if(newlineNo_MMS480PF.equals(oldlineNo_MMS480PF)&& newRIDX_MMS480PF.equals(oldRIDX_MMS480PF) && newItemNumber_MMS480PF.equals(oldItemNumber_MMS480PF) && newLotNumber_MMS480PF.equals(oldLotNumber_MMS480PF)){
-        tempDeliveredQty_MMS480PF = olddeliveredQty_MMS480PF + newdeliveredQty_MMS480PF
+  Closure<?> releasedItemProcessorMITTRA = { DBContainer container ->
+    newlineNo_MMS480PF = container.get("MTRIDL")
+    newRIDX_MMS480PF = container.get("MTRIDX")
+    newItemNumber_MMS480PF = container.get("MTITNO")
+    newLotNumber_MMS480PF = container.get("MTBANO")
+    newdeliveredQty_MMS480PF = container.get("MTTRQT") as double
+    newdeliveredQty_MMS480PF = newdeliveredQty_MMS480PF * -1
+    newcatchWeight_MMS480PF = container.get("MTCAWE") as double
+    newcatchWeight_MMS480PF = newcatchWeight_MMS480PF * -1
+    long deliveryNo_MMS480PF = container.get("MTRIDI") as long
+    if(deliveryNumber_MMS480PF == deliveryNo_MMS480PF){
+      if(newlineNo_MMS480PF.equals(oldlineNo_MMS480PF)&& newRIDX_MMS480PF.equals(oldRIDX_MMS480PF) && newItemNumber_MMS480PF.equals(oldItemNumber_MMS480PF) && newLotNumber_MMS480PF.equals(oldLotNumber_MMS480PF)){
+        tempDeliveredQty_MMS480PF = olddeliveredQty_MMS480PF + newdeliveredQty_MMS480PF 
         olddeliveredQty_MMS480PF = tempDeliveredQty_MMS480PF
         
-        tempcatchWeight_MMS480PF = oldcatchWeight_MMS480PF + newcatchWeight_MMS480PF
+        tempcatchWeight_MMS480PF = oldcatchWeight_MMS480PF + newcatchWeight_MMS480PF 
         oldcatchWeight_MMS480PF = tempcatchWeight_MMS480PF
         
         if(tempDeliveredQty_MMS480PF != 0.0 && newLotNumber_MMS480PF.equals(oldLotNumber_MMS480PF) ){
           getColliData(newItemNumber_MMS480PF,tempDeliveredQty_MMS480PF)
-          
           updateDeliveredQtyEXTCUS(tempDeliveredQty_MMS480PF,oldlineNo_MMS480PF,oldRIDX_MMS480PF,oldItemNumber_MMS480PF,oldLotNumber_MMS480PF,tempcatchWeight_MMS480PF,colli_MMS480PF)
-          
           tempDeliveredQty_MMS480PF = 0.0
           tempcatchWeight_MMS480PF = 0.0
           tempColli = 0.0
@@ -151,8 +162,8 @@ public class OutputProcessExtension extends ExtendM3Trigger {
           olddeliveredQty_MMS480PF = newdeliveredQty_MMS480PF
           oldcatchWeight_MMS480PF = newcatchWeight_MMS480PF
         }
+    }
   }
-  
    /**
    * getColliData - Get the rounded colli data from MITAUN base on DMCF
    * @return
